@@ -1,0 +1,38 @@
+---
+- name: Deploy and enable SMAK‑AM
+  hosts: all
+  gather_facts: false
+  vars:
+    toolroot: 'C:\\Program Files\\SMAK‑AM'
+    task_name: 'SMAK_AM'
+    task_path: 'C:\\Program Files\\SMAK‑AM\\run-smack-am.bat'
+
+  tasks:
+
+  - name: Copy SMAK‑AM toolset to host
+    win_copy:
+      src: files/smack‑am/          # repo location
+      dest: "{{ toolroot }}/"
+      remote_src: yes
+
+  - name: Verify that toolset exists
+    win_file:
+      path: "{{ toolroot }}\\run-smack-am.bat"
+      state: file
+    register: tool_present
+    ignore_errors: true
+
+  - name: Install SMAK‑AM scheduled task  (only if tool present)
+    win_scheduled_task:
+      name: "{{ task_name }}"
+      actions:
+        - path: "{{ task_path }}"
+      triggers:
+        - type: daily
+          start_boundary: '2026-01-01T00:01:00'
+          random_delay: PT23H            # 23‑hour offset per the guidebook [1]
+      user: SYSTEM
+      run_level: highest
+      priority: idle
+      state: present
+    when: tool_present.changed or tool_present.failed == false
